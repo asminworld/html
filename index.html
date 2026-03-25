@@ -303,22 +303,25 @@
           </div>
           <div style={{padding:"12px 20px 0"}}>
             <div style={{...card,padding:"20px 16px",background:"#fff"}}>
-              <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(playerCount,4)},1fr)`,gap:12}}>
-                {players.map((name,pi)=>{
-                  const d=dispScore(pi,hole),isDef=scores[pi][hole]===null,meta=SCORE_META(d-pars[hole]);
-                  return (
-                    <div key={pi} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
-                      <div style={{fontSize:11,fontWeight:500,color:PLAYER_COLORS[pi],overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:"100%",textAlign:"center"}}>{name}</div>
-                      <div style={{display:"flex",alignItems:"center",gap:4}}>
-                        <button onClick={()=>adjScore(pi,-1)} style={{...circleBtn,width:32,height:32,fontSize:16}}>−</button>
-                        <div style={{width:48,height:48,borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,fontWeight:500,background:isDef?"#f9fafb":meta.color+"15",color:isDef?"#9ca3af":meta.color,border:`1.5px solid ${isDef?"#e5e7eb":meta.color+"40"}`,transition:"all 0.15s"}}>{d}</div>
-                        <button onClick={()=>adjScore(pi,1)} style={{...circleBtn,width:32,height:32,fontSize:16}}>+</button>
+              {[...Array(Math.ceil(playerCount/4))].map((_, rowIdx) => (
+                <div key={rowIdx} style={{display:"grid", gridTemplateColumns:`repeat(${Math.min(playerCount - rowIdx*4, 4)}, 1fr)`, gap:12, marginBottom: rowIdx < Math.ceil(playerCount/4)-1 ? 16 : 0}}>
+                  {players.slice(rowIdx*4, rowIdx*4+4).map((name, i)=>{
+                    const pi = rowIdx*4+i;
+                    const d=dispScore(pi,hole),isDef=scores[pi][hole]===null,meta=SCORE_META(d-pars[hole]);
+                    return (
+                      <div key={pi} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
+                        <div style={{fontSize:11,fontWeight:500,color:PLAYER_COLORS[pi],overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:"100%",textAlign:"center"}}>{name}</div>
+                        <div style={{display:"flex",alignItems:"center",gap:4}}>
+                          <button onClick={()=>adjScore(pi,-1)} style={{...circleBtn,width:32,height:32,fontSize:16}}>−</button>
+                          <div style={{width:48,height:48,borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,fontWeight:500,background:isDef?"#f9fafb":meta.color+"15",color:isDef?"#9ca3af":meta.color,border:`1.5px solid ${isDef?"#e5e7eb":meta.color+"40"}`,transition:"all 0.15s"}}>{d}</div>
+                          <button onClick={()=>adjScore(pi,1)} style={{...circleBtn,width:32,height:32,fontSize:16}}>+</button>
+                        </div>
+                        <span style={{fontSize:11,fontWeight:500,color:isDef?"#9ca3af":meta.color,minHeight:16}}>{isDef?"—":meta.short}</span>
                       </div>
-                      <span style={{fontSize:11,fontWeight:500,color:isDef?"#9ca3af":meta.color,minHeight:16}}>{isDef?"—":meta.short}</span>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                    })}
+                </div>
+              ))}
             </div>
           </div>
           {isConfirmed&&cur&&(
