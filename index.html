@@ -18,55 +18,60 @@
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const {useState,useMemo,useRef,useEffect} = React;
+const {useState,useMemo,useRef,useEffect,useCallback} = React;
 const PC = ["#2563EB","#DC2626","#059669","#7C3AED","#DB2777","#D97706","#0891B2","#65A30D"];
 const MEMBERS = ["김동용","김동훈","김승환","김진욱","나정식","류상우","안성민","우상준","이승곤","이주영","이진성","최승용"];
 const DN = ["플레이어1","플레이어2","플레이어3","플레이어4","플레이어5","플레이어6","플레이어7","플레이어8"];
 
-function calcHole(raw,par,unit,n,dbl,bp){
-  const sc=raw.slice(0,n).map(s=>parseInt(s));
-  if(sc.some(s=>isNaN(s)))return null;
-  const isSp=s=>s<=par-1, isTp=s=>s>=par+3;
-  const hasSp=sc.some(isSp), hasTp=sc.some(isTp);
-  const min=Math.min(...sc), minC=sc.filter(s=>s===min).length;
-  const isTie=minC>=Math.ceil(n*3/4);
-  const mult=dbl&&(hasSp||isTie||hasTp)?2:1;
-  const eu=unit*mult;
-  const sett=Array(n).fill(0);
-  const pairs=[];
-  for(let i=0;i<n;i++) for(let j=i+1;j<n;j++){
-    const is=isSp(sc[i]),js=isSp(sc[j]);
-    let diff=sc[j]-sc[i];
-    if(bp&&hasSp&&is!==js) diff+=is?1:-1;
-    const amt=Math.abs(diff)*eu;
-    if(diff>0){sett[i]+=amt;sett[j]-=amt;}
-    else if(diff<0){sett[j]+=amt;sett[i]-=amt;}
-    pairs.push({i,j,si:sc[i],sj:sc[j],is,js,diff,amt});
+// 순수 함수 — 참조 없이 값만 사용
+function calcHole(sc, par, unit, dbl, bp) {
+  if(sc.some(s => isNaN(s) || s === null)) return null;
+  const isSp = s => s <= par - 1;
+  const isTp = s => s >= par + 3;
+  const hasSp = sc.some(isSp);
+  const hasTp = sc.some(isTp);
+  const min = Math.min(...sc);
+  const minC = sc.filter(s => s === min).length;
+  const isTie = minC >= Math.ceil(sc.length * 3 / 4);
+  const mult = dbl && (hasSp || isTie || hasTp) ? 2 : 1;
+  const eu = unit * mult;
+  const sett = Array(sc.length).fill(0);
+  const pairs = [];
+  for(let i = 0; i < sc.length; i++) {
+    for(let j = i+1; j < sc.length; j++) {
+      const is = isSp(sc[i]), js = isSp(sc[j]);
+      let diff = sc[j] - sc[i];
+      if(bp && hasSp && is !== js) diff += is ? 1 : -1;
+      const amt = Math.abs(diff) * eu;
+      if(diff > 0)      { sett[i] += amt; sett[j] -= amt; }
+      else if(diff < 0) { sett[j] += amt; sett[i] -= amt; }
+      pairs.push({i, j, si: sc[i], sj: sc[j], is, js, diff, amt});
+    }
   }
-  return {sett,hasSp,isTie,hasTp,mult,eu,pairs,sc};
+  return {sett, hasSp, isTie, hasTp, mult, eu, pairs, sc};
 }
 
-const SM=d=>{
-  if(d<=-3)return{s:"알바",c:"#7C3AED"};
-  if(d===-2)return{s:"이글",c:"#7C3AED"};
-  if(d===-1)return{s:"버디",c:"#059669"};
-  if(d===0) return{s:"파",  c:"#6B7280"};
-  if(d===1) return{s:"보기",c:"#D97706"};
-  if(d===2) return{s:"더블",c:"#DC2626"};
-  return{s:"트리플+",c:"#DC2626"};
+const SM = d => {
+  if(d <= -3) return {s:"알바",  c:"#7C3AED"};
+  if(d === -2) return {s:"이글",  c:"#7C3AED"};
+  if(d === -1) return {s:"버디",  c:"#059669"};
+  if(d === 0)  return {s:"파",    c:"#6B7280"};
+  if(d === 1)  return {s:"보기",  c:"#D97706"};
+  if(d === 2)  return {s:"더블",  c:"#DC2626"};
+  return          {s:"트리플+", c:"#DC2626"};
 };
 
-function Picker({pi,name,names,n,color,onChange,onSelect}){
-  const [open,setOpen]=useState(false);
-  const wr=useRef(),dr=useRef();
-  const [pos,setPos]=useState(null);
-  useEffect(()=>{
-    const h=e=>{if(!wr.current?.contains(e.target)&&!dr.current?.contains(e.target))setOpen(false);};
-    document.addEventListener("mousedown",h);
-    return()=>document.removeEventListener("mousedown",h);
-  },[]);
-  const toggle=()=>{if(!open&&wr.current)setPos(wr.current.getBoundingClientRect());setOpen(v=>!v);};
-  const players=names.slice(0,n);
+function Picker({pi, name, names, n, color, onChange, onSelect}) {
+  const [open, setOpen] = useState(false);
+  const wr = useRef(), dr = useRef();
+  const [pos, setPos] = useState(null);
+  useEffect(() => {
+    const h = e => { if(!wr.current?.contains(e.target) && !dr.current?.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+  const toggle = () => { if(!open && wr.current) setPos(wr.current.getBoundingClientRect()); setOpen(v => !v); };
+  const players = names.slice(0, n);
   return (
     <div ref={wr} style={{position:"relative"}}>
       <div onClick={toggle} style={{display:"flex",alignItems:"center",gap:8,background:"#fff",border:`1.5px solid ${open?color:"#e5e7eb"}`,borderRadius:12,padding:"9px 10px",cursor:"pointer"}}>
@@ -75,17 +80,17 @@ function Picker({pi,name,names,n,color,onChange,onSelect}){
           style={{border:"none",background:"transparent",fontSize:13,fontWeight:500,color:"#111",fontFamily:"inherit",outline:"none",width:"100%",minWidth:0}}/>
         <span style={{fontSize:10,color:"#aaa",flexShrink:0}}>{open?"▲":"▼"}</span>
       </div>
-      {open&&pos&&(
+      {open && pos && (
         <div ref={dr} style={{position:"fixed",top:pos.bottom+4,left:pos.left,width:pos.width,zIndex:9999,borderRadius:10,overflow:"hidden",maxHeight:200,overflowY:"auto",background:"#fff",border:`1px solid ${color}44`,boxShadow:"0 12px 32px rgba(0,0,0,0.18)"}}>
-          {MEMBERS.map(m=>{
-            const sel=name===m,used=players.includes(m)&&!sel;
-            return(
+          {MEMBERS.map(m => {
+            const sel = name===m, used = players.includes(m) && !sel;
+            return (
               <div key={m} onClick={()=>{if(!used){onSelect(m);setOpen(false);}}}
                 style={{padding:"9px 12px",fontSize:13,cursor:used?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",background:sel?color+"15":"#fff",color:used?"#ccc":sel?color:"#111",fontWeight:sel?500:400,borderBottom:"1px solid #f3f3f3"}}
                 onMouseEnter={e=>{if(!used)e.currentTarget.style.background=sel?color+"25":"#f5f5f5";}}
                 onMouseLeave={e=>{e.currentTarget.style.background=sel?color+"15":"#fff";}}>
                 {m}
-                {sel&&<svg width="12" height="10" viewBox="0 0 12 10"><polyline points="1,5 4.5,9 11,1" stroke={color} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                {sel && <svg width="12" height="10" viewBox="0 0 12 10"><polyline points="1,5 4.5,9 11,1" stroke={color} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
               </div>
             );
           })}
@@ -95,8 +100,8 @@ function Picker({pi,name,names,n,color,onChange,onSelect}){
   );
 }
 
-function Toggle({checked,onChange,label}){
-  return(
+function Toggle({checked, onChange, label}) {
+  return (
     <div onClick={onChange} style={{display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer",padding:"13px 0"}}>
       <span style={{fontSize:15,fontWeight:500,color:"#111"}}>{label}</span>
       <div style={{width:44,height:24,borderRadius:12,background:checked?"#059669":"#d1d5db",position:"relative",transition:"background 0.2s",flexShrink:0}}>
@@ -106,8 +111,8 @@ function Toggle({checked,onChange,label}){
   );
 }
 
-function Logo(){
-  return(
+function Logo() {
+  return (
     <svg viewBox="0 0 180 44" style={{height:34,width:"auto"}}>
       <defs>
         <linearGradient id="g1" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="#3B82F6"/><stop offset="100%" stopColor="#1D4ED8"/></linearGradient>
@@ -122,14 +127,14 @@ function Logo(){
   );
 }
 
-function ScoreInput({pi,name,score,par,onAdj}){
-  const isDef=score===null;
-  const val=isDef?par:score;
-  const meta=SM(val-par);
-  const color=isDef?"#9ca3af":meta.c;
-  const bg=isDef?"#f3f4f6":meta.c+"15";
-  const border=isDef?"#e5e7eb":meta.c+"55";
-  return(
+function ScoreInput({pi, name, score, par, onAdj}) {
+  const isDef = score === null;
+  const val = isDef ? par : score;
+  const meta = SM(val - par);
+  const color = isDef ? "#9ca3af" : meta.c;
+  const bg = isDef ? "#f3f4f6" : meta.c + "15";
+  const border = isDef ? "#e5e7eb" : meta.c + "55";
+  return (
     <div style={{flex:1,minWidth:0,display:"flex",flexDirection:"column",alignItems:"center",gap:6,padding:"10px 6px",border:"1px solid #f0f0f0",borderRadius:12,background:"#fafafa"}}>
       <div style={{fontSize:11,fontWeight:500,color:PC[pi],overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",width:"100%",textAlign:"center"}}>{name}</div>
       <div style={{display:"flex",alignItems:"center",width:"100%",justifyContent:"space-between",padding:"0 2px"}}>
@@ -139,115 +144,87 @@ function ScoreInput({pi,name,score,par,onAdj}){
         <button onClick={()=>onAdj(pi,1)}
           style={{flex:"0 0 30%",aspectRatio:"1/1",borderRadius:"50%",border:"1px solid #e5e7eb",background:"#fff",cursor:"pointer",fontSize:20,color:"#333",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"inherit"}}>+</button>
       </div>
-      <span style={{fontSize:11,fontWeight:500,color}}>{isDef?"—":meta.s}</span>
+      <span style={{fontSize:11,fontWeight:500,color}}>{isDef ? "—" : meta.s}</span>
     </div>
   );
 }
 
-function App(){
-  const [screen,setScreen]=useState("setup");
-  const [pCount,setPCount]=useState(4);
-  const [names,setNames]=useState([...DN]);
-  const [unit,setUnit]=useState(1000);
-  const [dbl,setDbl]=useState(true);
-  const [bp,setBp]=useState(true);
-  const [pars,setPars]=useState(()=>Array(18).fill(4));
-  const [scores,setScores]=useState(()=>Array.from({length:8},()=>Array(18).fill(null)));
-  const [conf,setConf]=useState(()=>Array(18).fill(false));
-  const [hole,setHole]=useState(0);
-  const [showDetail,setShowDetail]=useState(false);
-  const [showResult,setShowResult]=useState(false);
+// 게임 상태를 별도 컴포넌트로 분리해서 설정값이 안정적으로 전달되도록 함
+function Game({players, pCount, unit, dbl, bp, onBackToSetup}) {
+  const [pars, setPars] = useState(() => Array(18).fill(4));
+  const [scores, setScores] = useState(() => Array.from({length:8}, () => Array(18).fill(null)));
+  const [conf, setConf] = useState(() => Array(18).fill(false));
+  const [hole, setHole] = useState(0);
+  const [showDetail, setShowDetail] = useState(false);
+  const [showResult, setShowResult] = useState(false);
 
-  const players=names.slice(0,pCount);
-  function adjScore(pi,d){
-    setScores(prev=>{const n=prev.map(r=>[...r]);const cur=n[pi][hole]??pars[hole];n[pi][hole]=Math.max(1,Math.min(12,cur+d));return n;});
+  // 각 홀 결과를 개별 상태로 관리 (캐시 문제 완전 회피)
+  const [holeResults, setHoleResults] = useState(() => Array(18).fill(null));
+
+  function adjScore(pi, d) {
+    setScores(prev => {
+      const n = prev.map(r => [...r]);
+      const cur = n[pi][hole] ?? pars[hole];
+      n[pi][hole] = Math.max(1, Math.min(12, cur + d));
+      return n;
+    });
   }
-  function adjPar(d){
-    setPars(prev=>{const n=[...prev];n[hole]=Math.max(3,Math.min(5,n[hole]+d));return n;});
-    setScores(prev=>{const n=prev.map(r=>[...r]);players.forEach((_,pi)=>{n[pi][hole]=null;});return n;});
-    setConf(prev=>{const n=[...prev];n[hole]=false;return n;});
+
+  function adjPar(d) {
+    const newPar = Math.max(3, Math.min(5, pars[hole] + d));
+    setPars(prev => { const n=[...prev]; n[hole]=newPar; return n; });
+    setScores(prev => { const n=prev.map(r=>[...r]); players.forEach((_,pi)=>{n[pi][hole]=null;}); return n; });
+    setConf(prev => { const n=[...prev]; n[hole]=false; return n; });
+    setHoleResults(prev => { const n=[...prev]; n[hole]=null; return n; });
   }
-  function confirmHole(){
-    setScores(prev=>{const n=prev.map(r=>[...r]);players.forEach((_,pi)=>{if(n[pi][hole]===null)n[pi][hole]=pars[hole];});return n;});
-    setConf(prev=>{const n=[...prev];n[hole]=true;return n;});
+
+  function confirmHole() {
+    // 파로 확정
+    const finalScores = scores.map(r => [...r]);
+    players.forEach((_, pi) => { if(finalScores[pi][hole] === null) finalScores[pi][hole] = pars[hole]; });
+    setScores(finalScores);
+
+    // 결과 계산 — unit, dbl, bp를 클로저가 아닌 props에서 직접 사용
+    const sc = finalScores.map(r => r[hole]);
+    const result = calcHole(sc, pars[hole], unit, dbl, bp);
+    setHoleResults(prev => { const n=[...prev]; n[hole]=result; return n; });
+
+    setConf(prev => { const n=[...prev]; n[hole]=true; return n; });
     setShowDetail(false);
-    if(hole<17)setHole(h=>h+1);
+    if(hole < 17) setHole(h => h+1);
     else setShowResult(true);
   }
 
-  const results=useMemo(()=>Array.from({length:18},(_,hi)=>calcHole(scores.map(r=>r[hi]??pars[hi]),pars[hi],unit,pCount,dbl,bp)),[scores,pars,pCount,unit,dbl,bp]);
-  const cumul=useMemo(()=>{const c=Array(pCount).fill(0);results.forEach((r,hi)=>{if(r&&conf[hi])r.sett.forEach((a,pi)=>{c[pi]+=a;});});return c;},[results,conf,pCount]);
+  // 누적 정산
+  const cumul = useMemo(() => {
+    const c = Array(pCount).fill(0);
+    holeResults.forEach((r, hi) => {
+      if(r && conf[hi]) r.sett.forEach((a, pi) => { c[pi] += a; });
+    });
+    return c;
+  }, [holeResults, conf, pCount]);
 
-  const cur=results[hole];
-  const maxAbs=Math.max(...cumul.map(v=>Math.abs(Math.round(v))),1);
-  const fmt=v=>v===0?"±0":(v>0?"+":"")+Math.round(v).toLocaleString()+"원";
-  const pill=(c,bg)=>({fontSize:11,fontWeight:500,padding:"3px 8px",borderRadius:20,background:bg||c+"15",color:c});
-  const cBtn={borderRadius:"50%",border:"1px solid #e5e7eb",background:"#f9fafb",cursor:"pointer",color:"#111",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"inherit",flexShrink:0};
-  const card={background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:14};
-  const isConf=conf[hole];
+  const maxAbs = Math.max(...cumul.map(v => Math.abs(Math.round(v))), 1);
+  const fmt = v => v===0 ? "±0" : (v>0?"+":"") + Math.round(v).toLocaleString() + "원";
+  const pill = (c, bg) => ({fontSize:11,fontWeight:500,padding:"3px 8px",borderRadius:20,background:bg||c+"15",color:c});
+  const cBtn = {borderRadius:"50%",border:"1px solid #e5e7eb",background:"#f9fafb",cursor:"pointer",color:"#111",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"inherit",flexShrink:0};
+  const card = {background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:14};
+  const isConf = conf[hole];
+  const cur = holeResults[hole];
 
-  if(screen==="setup") return(
-    <div style={{maxWidth:390,margin:"0 auto",background:"#f9fafb",minHeight:"100vh",paddingBottom:40}}>
-      <div style={{padding:"24px 20px 20px",borderBottom:"1px solid #f0f0f0",background:"#fff"}}><Logo/></div>
-      <div style={{padding:"20px 20px 0"}}>
-        <div style={{fontSize:11,fontWeight:600,color:"#9ca3af",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:10}}>인원</div>
-        <div style={{display:"flex",gap:6}}>
-          {[2,3,4,5,6,7,8].map(n=>(
-            <button key={n} onClick={()=>setPCount(n)} style={{width:38,height:38,borderRadius:10,border:"none",cursor:"pointer",fontSize:14,fontWeight:500,fontFamily:"inherit",background:pCount===n?"#111":"#f3f4f6",color:pCount===n?"#fff":"#6b7280"}}>{n}</button>
-          ))}
-        </div>
-      </div>
-      <div style={{padding:"20px 20px 0"}}>
-        <div style={{fontSize:11,fontWeight:600,color:"#9ca3af",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:10}}>플레이어</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-          {Array.from({length:pCount},(_,pi)=>(
-            <Picker key={pi} pi={pi} name={names[pi]} names={names} n={pCount} color={PC[pi]}
-              onChange={v=>{const n=[...names];n[pi]=v;setNames(n);}}
-              onSelect={m=>{const n=[...names];n[pi]=m;setNames(n);}}/>
-          ))}
-        </div>
-      </div>
-      <div style={{padding:"20px 20px 0"}}>
-        <div style={{fontSize:11,fontWeight:600,color:"#9ca3af",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:10}}>홀 단가</div>
-        <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <button onClick={()=>setUnit(v=>Math.max(1000,v-1000))} style={{...cBtn,width:40,height:40,fontSize:20}}>−</button>
-          <div style={{flex:1,position:"relative"}}>
-            <input type="number" min={1000} step={1000} value={unit} onChange={e=>setUnit(Math.max(1000,parseInt(e.target.value)||1000))}
-              style={{width:"100%",padding:"11px 36px 11px 16px",borderRadius:12,border:"1.5px solid #e5e7eb",background:"#fff",color:"#111",fontSize:17,fontWeight:500,fontFamily:"inherit",outline:"none",textAlign:"center",boxSizing:"border-box"}}/>
-            <span style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",fontSize:13,color:"#aaa",pointerEvents:"none"}}>원</span>
-          </div>
-          <button onClick={()=>setUnit(v=>v+1000)} style={{...cBtn,width:40,height:40,fontSize:20}}>+</button>
-        </div>
-      </div>
-      <div style={{padding:"20px 20px 0"}}>
-        <div style={{fontSize:11,fontWeight:600,color:"#9ca3af",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:10}}>규칙</div>
-        <div style={{...card,padding:"0 16px"}}>
-          <Toggle checked={dbl} onChange={()=>setDbl(v=>!v)} label="배판 적용"/>
-          <div style={{borderTop:"1px solid #f3f4f6"}}/>
-          <Toggle checked={bp} onChange={()=>setBp(v=>!v)} label="버디값 적용"/>
-        </div>
-        {(dbl||bp)&&(
-          <div style={{marginTop:8,padding:"10px 14px",borderRadius:10,background:"#f3f4f6"}}>
-            {dbl&&<div style={{fontSize:12,color:"#6b7280",lineHeight:1.8}}>· 버디/이글, 3/4동점, 트리플보기 이상 → 2배</div>}
-            {bp&&<div style={{fontSize:12,color:"#6b7280",lineHeight:1.8}}>· 버디/이글 포함 쌍 → 타수 차이 +1</div>}
-          </div>
-        )}
-      </div>
-      <div style={{padding:"24px 20px 0"}}>
-        <button onClick={()=>{setHole(0);setScreen("play");}} style={{width:"100%",padding:"16px",borderRadius:14,border:"none",cursor:"pointer",background:"#111",color:"#fff",fontSize:16,fontWeight:500,fontFamily:"inherit"}}>게임 시작</button>
-      </div>
-    </div>
-  );
-
-  return(
+  return (
     <div style={{maxWidth:390,margin:"0 auto",background:"#f9fafb",minHeight:"100vh",paddingBottom:80}}>
+      {/* 헤더 */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 16px",borderBottom:"1px solid #f0f0f0",background:"#fff"}}>
         <div style={{display:"flex",gap:5}}>
-          {dbl&&<span style={pill("#059669","#D1FAE5")}>배판</span>}
-          {bp&&<span style={pill("#2563EB","#DBEAFE")}>버디값</span>}
+          {dbl && <span style={pill("#059669","#D1FAE5")}>배판</span>}
+          {bp  && <span style={pill("#2563EB","#DBEAFE")}>버디값</span>}
+          <span style={pill("#6B7280")}>{unit.toLocaleString()}원</span>
         </div>
-        <button onClick={()=>setScreen("setup")} style={{background:"#f3f4f6",border:"none",borderRadius:10,padding:"7px 14px",cursor:"pointer",fontSize:13,fontWeight:500,color:"#111",fontFamily:"inherit"}}>설정</button>
+        <button onClick={onBackToSetup} style={{background:"#f3f4f6",border:"none",borderRadius:10,padding:"7px 14px",cursor:"pointer",fontSize:13,fontWeight:500,color:"#111",fontFamily:"inherit"}}>설정</button>
       </div>
+
+      {/* 홀 네비 */}
       <div style={{background:"#fff",padding:"14px 16px 12px",borderBottom:"1px solid #f0f0f0"}}>
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
           <button onClick={()=>setHole(h=>Math.max(0,h-1))} disabled={hole===0} style={{...cBtn,width:38,height:38,fontSize:18,opacity:hole===0?0.3:1}}>‹</button>
@@ -258,13 +235,15 @@ function App(){
           <button onClick={()=>setHole(h=>Math.min(17,h+1))} disabled={hole===17} style={{...cBtn,width:38,height:38,fontSize:18,opacity:hole===17?0.3:1}}>›</button>
         </div>
         <div style={{display:"flex",gap:4,justifyContent:"center",flexWrap:"wrap"}}>
-          {Array.from({length:18},(_,hi)=>{
-            const r=results[hi],c=conf[hi],ic=hi===hole;
-            const dc=!c?"#e5e7eb":r?.hasTp?"#DC2626":r?.hasSp?"#7C3AED":r?.isTie?"#D97706":"#059669";
+          {Array.from({length:18}, (_, hi) => {
+            const r=holeResults[hi], c=conf[hi], ic=hi===hole;
+            const dc = !c?"#e5e7eb":r?.hasTp?"#DC2626":r?.hasSp?"#7C3AED":r?.isTie?"#D97706":"#059669";
             return <div key={hi} onClick={()=>setHole(hi)} style={{width:ic?26:8,height:8,borderRadius:4,cursor:"pointer",background:ic?"#111":c?dc:"#f0f0f0",transition:"width 0.2s"}}/>;
           })}
         </div>
       </div>
+
+      {/* 파 조절 */}
       <div style={{padding:"10px 16px 0"}}>
         <div style={{...card,padding:"12px 16px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <span style={{fontSize:14,color:"#6b7280"}}>이 홀 파</span>
@@ -275,34 +254,39 @@ function App(){
           </div>
         </div>
       </div>
+
+      {/* 타수 입력 */}
       <div style={{padding:"10px 16px 0"}}>
         <div style={{...card,padding:"12px"}}>
-          {Array.from({length:Math.ceil(pCount/2)},(_,row)=>(
+          {Array.from({length:Math.ceil(pCount/2)}, (_, row) => (
             <div key={row} style={{display:"flex",gap:8,marginBottom:row<Math.ceil(pCount/2)-1?8:0}}>
-              {players.slice(row*2,row*2+2).map((name,i)=>{
-                const pi=row*2+i;
+              {players.slice(row*2, row*2+2).map((name, i) => {
+                const pi = row*2+i;
                 return <ScoreInput key={pi} pi={pi} name={name} score={scores[pi][hole]} par={pars[hole]} onAdj={adjScore}/>;
               })}
             </div>
           ))}
         </div>
       </div>
-      {isConf&&cur&&(
+
+      {/* 이번 홀 정산 */}
+      {isConf && cur && (
         <div style={{padding:"10px 16px 0"}}>
           <div style={{...card,padding:"14px"}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,flexWrap:"wrap",gap:4}}>
               <div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center"}}>
                 <span style={{fontSize:13,fontWeight:500,color:"#111"}}>{hole+1}홀 정산</span>
-                {cur.hasSp&&<span style={pill("#7C3AED")}>버디/이글 2배</span>}
-                {cur.isTie&&<span style={pill("#D97706")}>동점 2배</span>}
-                {cur.hasTp&&<span style={pill("#DC2626")}>트리플+ 2배</span>}
-                {cur.mult>1&&<span style={pill("#6B7280")}>{cur.eu.toLocaleString()}원/타</span>}
+                {cur.hasSp && <span style={pill("#7C3AED")}>버디/이글 2배</span>}
+                {cur.isTie && <span style={pill("#D97706")}>동점 2배</span>}
+                {cur.hasTp && <span style={pill("#DC2626")}>트리플+ 2배</span>}
+                {cur.mult>1 && <span style={pill("#6B7280")}>{cur.eu.toLocaleString()}원/타</span>}
               </div>
               <button onClick={()=>setShowDetail(v=>!v)} style={{background:"transparent",border:"1px solid #e5e7eb",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontSize:11,color:"#6b7280",fontFamily:"inherit"}}>{showDetail?"접기":"상세"}</button>
             </div>
-            {players.map((name,pi)=>{
-              const amt=Math.round(cur.sett[pi]),m=SM(cur.sc[pi]-pars[hole]);
-              return(
+            {players.map((name, pi) => {
+              const amt = Math.round(cur.sett[pi]);
+              const m = SM(cur.sc[pi] - pars[hole]);
+              return (
                 <div key={pi} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderTop:"1px solid #f3f4f6"}}>
                   <div style={{display:"flex",alignItems:"center",gap:7}}>
                     <div style={{width:6,height:6,borderRadius:"50%",background:PC[pi]}}/>
@@ -313,17 +297,17 @@ function App(){
                 </div>
               );
             })}
-            {showDetail&&(
+            {showDetail && (
               <div style={{marginTop:10,paddingTop:10,borderTop:"1px solid #f3f4f6"}}>
-                {cur.pairs.map(({i,j,si,sj,is,js,diff,amt})=>{
-                  const w=diff>0?i:diff<0?j:null;
-                  return(
+                {cur.pairs.map(({i,j,si,sj,is,js,diff,amt}) => {
+                  const w = diff>0?i:diff<0?j:null;
+                  return (
                     <div key={`${i}-${j}`} style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"5px 8px",borderRadius:8,background:"#f9fafb",marginBottom:4}}>
                       <span style={{color:"#6b7280"}}>
                         <span style={{color:PC[i],fontWeight:500}}>{players[i]}</span>{is?"★":""} {si}타 vs <span style={{color:PC[j],fontWeight:500}}>{players[j]}</span>{js?"★":""} {sj}타
-                        {bp&&is!==js&&<span style={{color:"#7C3AED"}}> (+1)</span>}
+                        {bp && is!==js && <span style={{color:"#7C3AED"}}> (+1)</span>}
                       </span>
-                      {w!==null?<span style={{color:"#059669",fontWeight:500}}>{players[w]} +{amt.toLocaleString()}원</span>:<span style={{color:"#9ca3af"}}>동타</span>}
+                      {w!==null ? <span style={{color:"#059669",fontWeight:500}}>{players[w]} +{amt.toLocaleString()}원</span> : <span style={{color:"#9ca3af"}}>동타</span>}
                     </div>
                   );
                 })}
@@ -332,40 +316,60 @@ function App(){
           </div>
         </div>
       )}
+
+      {/* 누적 정산 + 스코어 현황 */}
       <div style={{padding:"10px 16px 0"}}>
         <div style={{...card,padding:"14px"}}>
           <div style={{fontSize:11,color:"#9ca3af",marginBottom:10,fontWeight:600,letterSpacing:"0.05em",textTransform:"uppercase"}}>누적 정산</div>
-          {[...players.map((name,pi)=>({name,pi,c:Math.round(cumul[pi])}))].sort((a,b)=>b.c-a.c).map(({name,pi,c})=>{
+          {players.map((name,pi)=>{
+            const c=Math.round(cumul[pi]);
             const pct=Math.abs(c)/maxAbs*50;
+            const completedHoles=conf.filter(Boolean).length;
+            const totalStrokes=conf.reduce((sum,isDone,hi)=>isDone?sum+(scores[pi][hi]??pars[hi]):sum,0);
+            const totalPar=conf.reduce((sum,isDone,hi)=>isDone?sum+pars[hi]:sum,0);
+            const diff=totalStrokes-totalPar;
+            const diffStr=diff===0?"0":diff>0?"+"+diff:String(diff);
+            const diffColor=diff<0?"#7C3AED":diff===0?"#6B7280":"#DC2626";
             return(
-              <div key={pi} style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-                <div style={{width:68,display:"flex",alignItems:"center",gap:5,flexShrink:0}}>
-                  <div style={{width:6,height:6,borderRadius:"50%",background:PC[pi],flexShrink:0}}/>
-                  <span style={{fontSize:12,fontWeight:500,color:"#111",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{name}</span>
+              <div key={pi} style={{marginBottom:12,paddingBottom:12,borderBottom:"1px solid #f3f4f6"}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+                  <div style={{display:"flex",alignItems:"center",gap:6,minWidth:0,flex:1}}>
+                    <div style={{width:6,height:6,borderRadius:"50%",background:PC[pi],flexShrink:0}}/>
+                    <span style={{fontSize:13,fontWeight:500,color:"#111",flexShrink:0}}>{name}</span>
+                    {completedHoles>0&&(
+                      <span style={{fontSize:11,color:diffColor,background:diffColor+"12",padding:"2px 6px",borderRadius:5,fontWeight:500,flexShrink:0}}>
+                        {totalStrokes}타 ({diffStr})
+                      </span>
+                    )}
+                  </div>
+                  <span style={{fontSize:14,fontWeight:500,flexShrink:0,marginLeft:8,color:c>0?"#059669":c<0?"#DC2626":"#9ca3af"}}>{fmt(c)}</span>
                 </div>
-                <div style={{flex:1,height:8,position:"relative"}}>
-                  <div style={{position:"absolute",inset:0,background:"#f3f4f6",borderRadius:4}}/>
+                <div style={{height:6,position:"relative"}}>
+                  <div style={{position:"absolute",inset:0,background:"#f3f4f6",borderRadius:3}}/>
                   <div style={{position:"absolute",left:"50%",top:0,bottom:0,width:1,background:"#e5e7eb",transform:"translateX(-50%)"}}/>
-                  {c!==0&&<div style={{position:"absolute",height:"100%",width:pct+"%",background:c>0?"#059669":"#DC2626",left:c>0?"50%":`${50-pct}%`,borderRadius:c>0?"0 4px 4px 0":"4px 0 0 4px"}}/>}
+                  {c!==0&&<div style={{position:"absolute",height:"100%",width:pct+"%",background:c>0?"#059669":"#DC2626",left:c>0?"50%":`${50-pct}%`,borderRadius:c>0?"0 3px 3px 0":"3px 0 0 3px"}}/>}
                 </div>
-                <span style={{fontSize:13,fontWeight:500,minWidth:78,textAlign:"right",color:c>0?"#059669":c<0?"#DC2626":"#9ca3af"}}>{fmt(c)}</span>
               </div>
             );
           })}
         </div>
       </div>
+
+      {/* 버튼 */}
       <div style={{padding:"12px 16px 0"}}>
         <button onClick={confirmHole} style={{width:"100%",padding:"16px",borderRadius:14,border:"none",cursor:"pointer",background:isConf&&hole<17?"#1D4ED8":"#111827",color:"#fff",fontSize:16,fontWeight:500,fontFamily:"inherit"}}>
-          {isConf&&hole<17?"다음 홀 →":isConf&&hole===17?"최종 정산 보기":"입력 완료 · 다음 홀 →"}
+          {isConf && hole<17 ? "다음 홀 →" : isConf && hole===17 ? "최종 정산 보기" : "입력 완료 · 다음 홀 →"}
         </button>
       </div>
-      {showResult&&(
+
+      {/* 최종 정산 바텀시트 */}
+      {showResult && (
         <div style={{position:"fixed",inset:0,zIndex:9999,display:"flex",flexDirection:"column",justifyContent:"flex-end",background:"rgba(0,0,0,0.5)"}}>
           <div style={{background:"#fff",borderRadius:"20px 20px 0 0",padding:"20px 20px 36px"}}>
             <div style={{width:32,height:4,borderRadius:2,background:"#e5e7eb",margin:"0 auto 18px"}}/>
             <div style={{fontSize:20,fontWeight:500,color:"#111",marginBottom:4}}>최종 정산</div>
-            <div style={{fontSize:13,color:"#6b7280",marginBottom:18}}>18홀 완료</div>
-            {[...players.map((name,pi)=>({name,pi,c:Math.round(cumul[pi])}))].sort((a,b)=>b.c-a.c).map(({name,pi,c},rank)=>(
+            <div style={{fontSize:13,color:"#6b7280",marginBottom:18}}>18홀 완료 · 단가 {unit.toLocaleString()}원</div>
+            {[...players.map((name,pi)=>({name,pi,c:Math.round(cumul[pi])}))].sort((a,b)=>b.c-a.c).map(({name,pi,c},rank) => (
               <div key={pi} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 0",borderBottom:"1px solid #f3f4f6"}}>
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
                   <span style={{fontSize:12,color:"#9ca3af",width:18}}>{rank+1}</span>
@@ -383,7 +387,90 @@ function App(){
   );
 }
 
-const root=ReactDOM.createRoot(document.getElementById('root'));
+function App() {
+  const [screen, setScreen] = useState("setup");
+  const [pCount, setPCount] = useState(4);
+  const [names, setNames] = useState([...DN]);
+  const [unit, setUnit] = useState(1000);
+  const [dbl, setDbl] = useState(true);
+  const [bp, setBp] = useState(true);
+  const [gameKey, setGameKey] = useState(0); // 게임 재시작 시 Game 컴포넌트 완전 초기화
+
+  const players = names.slice(0, pCount);
+
+  function startGame() {
+    setGameKey(k => k+1); // 새 게임마다 Game 컴포넌트 초기화
+    setScreen("play");
+  }
+
+  const cBtn = {borderRadius:"50%",border:"1px solid #e5e7eb",background:"#f9fafb",cursor:"pointer",color:"#111",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"inherit",flexShrink:0};
+  const card = {background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:14};
+  const pill = (c, bg) => ({fontSize:11,fontWeight:500,padding:"3px 8px",borderRadius:20,background:bg||c+"15",color:c});
+
+  if(screen === "play") return (
+    <Game key={gameKey} players={players} pCount={pCount} unit={unit} dbl={dbl} bp={bp} onBackToSetup={()=>setScreen("setup")}/>
+  );
+
+  return (
+    <div style={{maxWidth:390,margin:"0 auto",background:"#f9fafb",minHeight:"100vh",paddingBottom:40}}>
+      <div style={{padding:"24px 20px 20px",borderBottom:"1px solid #f0f0f0",background:"#fff"}}><Logo/></div>
+
+      <div style={{padding:"20px 20px 0"}}>
+        <div style={{fontSize:11,fontWeight:600,color:"#9ca3af",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:10}}>인원</div>
+        <div style={{display:"flex",gap:6}}>
+          {[2,3,4,5,6,7,8].map(n => (
+            <button key={n} onClick={()=>setPCount(n)} style={{width:38,height:38,borderRadius:10,border:"none",cursor:"pointer",fontSize:14,fontWeight:500,fontFamily:"inherit",background:pCount===n?"#111":"#f3f4f6",color:pCount===n?"#fff":"#6b7280"}}>{n}</button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{padding:"20px 20px 0"}}>
+        <div style={{fontSize:11,fontWeight:600,color:"#9ca3af",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:10}}>플레이어</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          {Array.from({length:pCount}, (_, pi) => (
+            <Picker key={pi} pi={pi} name={names[pi]} names={names} n={pCount} color={PC[pi]}
+              onChange={v=>{const n=[...names];n[pi]=v;setNames(n);}}
+              onSelect={m=>{const n=[...names];n[pi]=m;setNames(n);}}/>
+          ))}
+        </div>
+      </div>
+
+      <div style={{padding:"20px 20px 0"}}>
+        <div style={{fontSize:11,fontWeight:600,color:"#9ca3af",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:10}}>홀 단가</div>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <button onClick={()=>setUnit(v=>Math.max(100,v-1000))} style={{...cBtn,width:40,height:40,fontSize:20}}>−</button>
+          <div style={{flex:1,position:"relative"}}>
+            <input type="number" min={100} step={100} value={unit} onChange={e=>setUnit(Math.max(100,parseInt(e.target.value)||100))}
+              style={{width:"100%",padding:"11px 36px 11px 16px",borderRadius:12,border:"1.5px solid #e5e7eb",background:"#fff",color:"#111",fontSize:17,fontWeight:500,fontFamily:"inherit",outline:"none",textAlign:"center",boxSizing:"border-box"}}/>
+            <span style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",fontSize:13,color:"#aaa",pointerEvents:"none"}}>원</span>
+          </div>
+          <button onClick={()=>setUnit(v=>v+1000)} style={{...cBtn,width:40,height:40,fontSize:20}}>+</button>
+        </div>
+      </div>
+
+      <div style={{padding:"20px 20px 0"}}>
+        <div style={{fontSize:11,fontWeight:600,color:"#9ca3af",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:10}}>규칙</div>
+        <div style={{...card,padding:"0 16px"}}>
+          <Toggle checked={dbl} onChange={()=>setDbl(v=>!v)} label="배판 적용"/>
+          <div style={{borderTop:"1px solid #f3f4f6"}}/>
+          <Toggle checked={bp} onChange={()=>setBp(v=>!v)} label="버디값 적용"/>
+        </div>
+        {(dbl||bp) && (
+          <div style={{marginTop:8,padding:"10px 14px",borderRadius:10,background:"#f3f4f6"}}>
+            {dbl && <div style={{fontSize:12,color:"#6b7280",lineHeight:1.8}}>· 버디/이글, 3/4동점, 트리플보기 이상 → 2배</div>}
+            {bp  && <div style={{fontSize:12,color:"#6b7280",lineHeight:1.8}}>· 버디/이글 포함 쌍 → 타수 차이 +1</div>}
+          </div>
+        )}
+      </div>
+
+      <div style={{padding:"24px 20px 0"}}>
+        <button onClick={startGame} style={{width:"100%",padding:"16px",borderRadius:14,border:"none",cursor:"pointer",background:"#111",color:"#fff",fontSize:16,fontWeight:500,fontFamily:"inherit"}}>게임 시작</button>
+      </div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(<App/>);
 </script>
 </body>
