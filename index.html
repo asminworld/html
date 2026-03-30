@@ -438,9 +438,10 @@ function App() {
       <div style={{padding:"20px 20px 0"}}>
         <div style={{fontSize:11,fontWeight:600,color:"#9ca3af",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:10}}>홀 단가</div>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <button onClick={()=>setUnit(v=>Math.max(100,v-1000))} style={{...cBtn,width:40,height:40,fontSize:20}}>−</button>
+          <button onClick={()=>setUnit(v=>Math.max(1,v-1000))} style={{...cBtn,width:40,height:40,fontSize:20}}>−</button>
           <div style={{flex:1,position:"relative"}}>
-            <input type="number" min={100} step={100} value={unit} onChange={e=>setUnit(Math.max(100,parseInt(e.target.value)||100))}
+            <input type="number" min={1} value={unit}
+              onChange={e=>{const v=parseInt(e.target.value);setUnit(isNaN(v)||v<1?1:v);}}
               style={{width:"100%",padding:"11px 36px 11px 16px",borderRadius:12,border:"1.5px solid #e5e7eb",background:"#fff",color:"#111",fontSize:17,fontWeight:500,fontFamily:"inherit",outline:"none",textAlign:"center",boxSizing:"border-box"}}/>
             <span style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",fontSize:13,color:"#aaa",pointerEvents:"none"}}>원</span>
           </div>
