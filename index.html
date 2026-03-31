@@ -537,9 +537,9 @@ function App(){
       <div style={{padding:"20px 20px 0"}}>
         <div style={{fontSize:11,fontWeight:600,color:"#9ca3af",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:4}}>핸디캡</div>
         <div style={{fontSize:11,color:"#9ca3af",marginBottom:10}}>핸디 낮은 플레이어 → 높은 플레이어에게 차이 × 단가 지급</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+        <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) minmax(0,1fr)",gap:8}}>
           {Array.from({length:pCount},(_,pi)=>(
-            <div key={pi} style={{display:"flex",alignItems:"center",gap:6,background:"#fff",border:"1.5px solid #e5e7eb",borderRadius:12,padding:"8px 10px"}}>
+            <div key={pi} style={{display:"flex",alignItems:"center",gap:4,background:"#fff",border:"1.5px solid #e5e7eb",borderRadius:12,padding:"8px 8px",minWidth:0,overflow:"hidden"}}>
               <div style={{width:7,height:7,borderRadius:"50%",background:PC[pi],flexShrink:0}}/>
               <span style={{fontSize:12,color:"#6b7280",flexShrink:0,maxWidth:52,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{names[pi]}</span>
               <div style={{flex:1,display:"flex",alignItems:"center",gap:3,justifyContent:"flex-end"}}>
